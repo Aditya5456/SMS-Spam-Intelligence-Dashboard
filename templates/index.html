@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SMS Spam Intelligence Dashboard | {{ title }}</title>
+  <meta name="description" content="{{ title }} - Machine Learning Unit 2 Project">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✉️</text></svg>">
+</head>
+<body>
+<div class="layout">
+
+  <!-- ============ SIDEBAR NAVIGATION ============ -->
+  <aside class="sidebar" aria-label="Project sections">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 32 32" width="28" height="28"><rect x="3" y="6" width="26" height="18" rx="5" fill="var(--ham)"/><path d="M9 24v5l6-5" fill="var(--ham)"/><circle cx="11" cy="15" r="2" fill="#fff"/><circle cx="16" cy="15" r="2" fill="#fff"/><circle cx="21" cy="15" r="2" fill="var(--spam-soft)"/></svg>
+      </span>
+      <span class="brand-text">SMS Spam<br>Intelligence</span>
+    </div>
+    <nav>
+      <ol class="nav-list">
+        <li><a href="#intro">Introduction</a></li>
+        <li><a href="#syllabus">Syllabus mapping</a></li>
+        <li><a href="#upload">Dataset upload</a></li>
+        <li><a href="#overview">Dataset overview</a></li>
+        <li><a href="#preview">Dataset preview</a></li>
+        <li><a href="#preprocessing">Text preprocessing</a></li>
+        <li><a href="#eda">Exploratory analysis</a></li>
+        <li><a href="#tfidf">TF-IDF features</a></li>
+        <li><a href="#svm">Support Vector Machine</a></li>
+        <li><a href="#kernels">Kernels and tuning</a></li>
+        <li><a href="#blr">Bayesian logistic regression</a></li>
+        <li><a href="#compare">Model comparison</a></li>
+        <li><a href="#confusion">Confusion matrix</a></li>
+        <li><a href="#linreg">Linear regression demo</a></li>
+        <li><a href="#ridge">Ridge regression</a></li>
+        <li><a href="#tester">Live SMS tester</a></li>
+        <li><a href="#findings">Key findings</a></li>
+        <li><a href="#conclusion">Conclusion</a></li>
+      </ol>
+    </nav>
+    <button id="themeToggle" class="theme-toggle" type="button" aria-pressed="false">Dark mode</button>
+  </aside>
+
+  <main class="main">
+
+    <!-- ============ HEADER ============ -->
+    <header class="hero" id="top">
+      <p class="hero-unit">Machine Learning – Unit 2 Project</p>
+      <h1 class="hero-title">SMS Spam Intelligence Dashboard</h1>
+      <p class="hero-subtitle">{{ title }}</p>
+
+      <div class="signal" aria-live="polite">
+        <div class="signal-head">
+          <span id="heroSource">Loading dataset…</span>
+          <span id="heroModel" class="muted"></span>
+        </div>
+        <div class="signal-strip" id="signalStrip" role="img" aria-label="Ham and spam proportion">
+          <div class="signal-ham" id="signalHam" style="width:50%"></div>
+          <div class="signal-spam" id="signalSpam" style="width:50%"></div>
+        </div>
+        <div class="signal-legend">
+          <span><i class="dot dot-ham"></i><b id="heroHam">–</b> ham</span>
+          <span><i class="dot dot-spam"></i><b id="heroSpam">–</b> spam</span>
+          <span class="muted" id="heroAcc"></span>
+        </div>
+      </div>
+    </header>
+
+    <div id="globalError" class="alert alert-error hidden" role="alert"></div>
+
+    <!-- ============ 1. INTRODUCTION ============ -->
+    <section id="intro" class="section">
+      <h2 class="section-title"><span class="num">1</span>Project introduction</h2>
+      <div class="prose-grid">
+        <div>
+          <h3>What is SMS spam?</h3>
+          <p>SMS spam is any unwanted text message sent in bulk, usually to advertise, to trick people into calling premium-rate numbers, or to steal personal and banking details (phishing). Legitimate personal messages are called <b>ham</b>.</p>
+          <h3>Why detection matters in telecommunications</h3>
+          <p>Telecom operators deliver billions of messages. Spam wastes network capacity, annoys subscribers and causes real financial losses through fraud. Filtering it automatically protects users and the operator's reputation.</p>
+          <h3>Why machine learning?</h3>
+          <p>Hand-written rules ("block every message containing <i>free</i>") are easy for spammers to dodge and also block genuine messages. A machine-learning model learns patterns from thousands of labelled examples and can be retrained when spam changes.</p>
+        </div>
+        <div>
+          <h3>Why text classification?</h3>
+          <p>Each SMS must be assigned to one of two classes, ham or spam. Because the input is free text, we first convert words into numbers (TF-IDF) and then train a classifier on those numbers.</p>
+          <h3>Why a Support Vector Machine?</h3>
+          <p>An SVM finds the separating boundary with the widest possible margin between the two classes. It works well with the very high-dimensional, sparse features produced from text, and kernels let it learn non-linear boundaries without computing new features explicitly.</p>
+          <h3>Unit-2 concepts demonstrated</h3>
+          <p>SVM and kernels (main model), Bayesian logistic regression with the Laplace approximation, maximum likelihood and least squares, robust, polynomial, ridge and Bayesian linear regression, and discriminative versus generative models.</p>
+        </div>
+      </div>
+
+      <h3>System architecture and methodology</h3>
+      <ol class="pipeline">
+        <li><b>Upload CSV</b><span>Kaggle SMS Spam Collection or sample file</span></li>
+        <li><b>Validate and clean</b><span>labels, missing values, empty rows, duplicates</span></li>
+        <li><b>Train / test split</b><span>80 / 20, stratified, fixed seed</span></li>
+        <li><b>Preprocess + TF-IDF</b><span>fitted on training data only</span></li>
+        <li><b>Train models</b><span>SVM and Bayesian logistic regression</span></li>
+        <li><b>Evaluate</b><span>test-set metrics and confusion matrix</span></li>
+        <li><b>Predict</b><span>live SMS classification</span></li>
+      </ol>
+      <p class="note"><b>Data leakage prevention.</b> Duplicate messages are removed before splitting so the same text cannot appear in both sets. The TF-IDF vectorizer learns its vocabulary and IDF weights from the training messages only; the test messages are only transformed. Grid search uses cross-validation inside the training set, so the test set is never used for choosing settings.</p>
+      <p class="note">Frontend: HTML5, CSS3, vanilla JavaScript and Plotly.js charts. Backend: Python, Flask, Pandas, NumPy, SciPy and scikit-learn. Every chart and number on this page is calculated by the backend from the dataset that is currently loaded.</p>
+    </section>
+
+    <!-- ============ 2. SYLLABUS MAPPING ============ -->
+    <section id="syllabus" class="section">
+      <h2 class="section-title"><span class="num">2</span>Unit-2 syllabus mapping</h2>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Unit-2 concept</th><th>Where it is demonstrated</th><th>Type</th></tr></thead>
+          <tbody>
+            <tr><td>Maximum Likelihood Estimation</td><td><a href="#linreg">Linear regression</a>: Gaussian-noise likelihood and the ML noise variance σ²<sub>ML</sub></td><td>Computed + theory</td></tr>
+            <tr><td>Least Squares</td><td><a href="#linreg">Normal-equation solution</a>, checked against scikit-learn</td><td>Computed</td></tr>
+            <tr><td>Robust Linear Regression</td><td><a href="#linreg">Huber regression vs ordinary least squares</a>, with an optional outlier test</td><td>Computed</td></tr>
+            <tr><td>Ridge Regression</td><td><a href="#ridge">OLS vs ridge coefficients, regularization path</a></td><td>Computed</td></tr>
+            <tr><td>Bayesian Linear Regression</td><td><a href="#ridge">Bayesian ridge with predictive uncertainty</a></td><td>Computed</td></tr>
+            <tr><td>Linear Models for Classification</td><td><a href="#svm">Linear SVM</a> and <a href="#blr">logistic regression</a></td><td>Computed</td></tr>
+            <tr><td>Discriminant Function</td><td><a href="#svm">SVM decision function f(x) = wᵀx + b and decision boundary plot</a></td><td>Computed + theory</td></tr>
+            <tr><td>Probabilistic Generative Models</td><td><a href="#blr">Multinomial Naive Bayes reference model</a>, measured against the discriminative models</td><td>Computed + theory</td></tr>
+            <tr><td>Probabilistic Discriminative Models</td><td><a href="#blr">Logistic regression</a> models p(spam | x) directly</td><td>Computed</td></tr>
+            <tr><td>Laplacian Approximation</td><td><a href="#blr">Gaussian approximation of the posterior at the MAP estimate</a></td><td>Computed</td></tr>
+            <tr><td>Bayesian Logistic Regression</td><td><a href="#blr">Second classification model</a> with moderated predictive probabilities</td><td>Computed</td></tr>
+            <tr><td>Kernel Functions</td><td><a href="#kernels">Linear, RBF and polynomial kernels</a></td><td>Computed</td></tr>
+            <tr><td>Using Kernels in GLMs / Kernel Trick</td><td><a href="#svm">Kernel SVM explanation</a> and <a href="#kernels">kernel experiment</a></td><td>Computed + theory</td></tr>
+            <tr><td>Support Vector Machines</td><td><a href="#svm">Main SMS spam classifier</a></td><td>Computed</td></tr>
+            <tr><td>Practical 1: linear regression for prediction</td><td><a href="#linreg">Separate regression module</a></td><td>Computed</td></tr>
+            <tr><td>Practical 2: Bayesian logistic regression and SVM</td><td><a href="#svm">SVM</a>, <a href="#blr">Bayesian LR</a>, <a href="#compare">comparison</a></td><td>Computed</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ 3. UPLOAD ============ -->
+    <section id="upload" class="section">
+      <h2 class="section-title"><span class="num">3</span>Dataset upload</h2>
+      <p>Dataset: <b>SMS Spam Collection Dataset</b> (UCI Machine Learning, hosted on Kaggle) — <a href="{{ dataset_url }}" target="_blank" rel="noopener">{{ dataset_url }}</a>. Download <code>spam.csv</code> from Kaggle and upload it here. A small sample file is loaded automatically so the dashboard works before you upload.</p>
+
+      <form id="uploadForm" class="upload-box" novalidate>
+        <label for="fileInput" class="dropzone" id="dropzone">
+          <input type="file" id="fileInput" name="file" accept=".csv,.txt,.tsv">
+          <span class="dz-title">Choose a CSV file or drop it here</span>
+          <span class="dz-sub" id="fileName">Expected: a label column (ham / spam) and a message column</span>
+        </label>
+        <div class="upload-actions">
+          <button type="submit" class="btn btn-primary" id="uploadBtn">Upload and train</button>
+          <button type="button" class="btn" id="resetBtn">Reset to sample dataset</button>
+        </div>
+      </form>
+
+      <div id="mappingPanel" class="mapping hidden">
+        <p class="mapping-msg" id="mappingMsg"></p>
+        <div class="form-row">
+          <label>Label column
+            <select id="labelColSelect"></select>
+          </label>
+          <label>Text column
+            <select id="textColSelect"></select>
+          </label>
+          <button type="button" class="btn btn-primary" id="mappingBtn">Use these columns</button>
+        </div>
+        <div class="table-wrap small hidden" id="mappingPreviewWrap">
+          <table class="table"><thead id="mappingHead"></thead><tbody id="mappingBody"></tbody></table>
+        </div>
+      </div>
+
+      <div id="uploadStatus" class="hidden" role="status"></div>
+    </section>
+
+    <!-- ============ 4. OVERVIEW ============ -->
+    <section id="overview" class="section">
+      <h2 class="section-title"><span class="num">4</span>Dataset overview</h2>
+      <p class="muted" id="overviewSource"></p>
+      <div class="stat-grid" id="overviewCards"></div>
+      <p class="note" id="overviewNote"></p>
+    </section>
+
+    <!-- ============ 5. PREVIEW ============ -->
+    <section id="preview" class="section">
+      <h2 class="section-title"><span class="num">5</span>Dataset preview</h2>
+      <div class="toolbar">
+        <input type="search" id="previewSearch" placeholder="Search messages…" aria-label="Search messages">
+        <div class="segmented" role="group" aria-label="Filter by label">
+          <button type="button" class="seg active" data-label="all">All</button>
+          <button type="button" class="seg" data-label="ham">Ham</button>
+          <button type="button" class="seg" data-label="spam">Spam</button>
+        </div>
+        <label class="inline">Rows
+          <select id="previewPerPage"><option>10</option><option selected>25</option><option>50</option><option>100</option></select>
+        </label>
+      </div>
+      <div class="table-wrap scroll">
+        <table class="table sticky">
+          <thead><tr><th class="col-row">#</th><th class="col-label">Label</th><th>Message</th></tr></thead>
+          <tbody id="previewBody"></tbody>
+        </table>
+      </div>
+      <div class="pager">
+        <button type="button" class="btn btn-small" id="prevPage">Previous</button>
+        <span id="pageInfo"></span>
+        <button type="button" class="btn btn-small" id="nextPage">Next</button>
+      </div>
+    </section>
+
+    <!-- ============ 6. PREPROCESSING ============ -->
+    <section id="preprocessing" class="section">
+      <h2 class="section-title"><span class="num">6</span>Text preprocessing</h2>
+      <p>Raw messages are cleaned before they are converted into numbers. The same cleaning function is used for training, testing and the live tester, so every message is treated identically.</p>
+      <ol class="steps">
+        <li><b>Decode HTML codes.</b> The real dataset stores some characters as web codes, for example <code>&amp;lt;#&amp;gt;</code> (a placeholder for a number) and <code>&amp;amp;</code> (meaning "&amp;"). Decoding them first stops fake words such as "lt" and "gt" from appearing.</li>
+        <li><b>Lowercase.</b> "FREE" and "free" become the same word.</li>
+        <li><b>Replace links and currency symbols.</b> Web addresses become the word <code>url</code>; £, $, € and ₹ become <code>money</code>. Spam often contains these, so we keep the signal but not the exact address.</li>
+        <li><b>Remove punctuation and symbols.</b> Only letters, digits and spaces are kept. Digits are kept because premium phone numbers and prize amounts are strong spam clues.</li>
+        <li><b>Remove extra whitespace.</b> Multiple spaces collapse into one.</li>
+        <li><b>Stopword removal (inside TF-IDF).</b> Very common words such as "the", "is", "you" carry little meaning and are ignored, using scikit-learn's English stopword list.</li>
+        <li><b>TF-IDF feature extraction.</b> The cleaned text is turned into a numeric vector (next sections).</li>
+      </ol>
+      <div id="preprocessExamples" class="examples"></div>
+      <p class="note" id="preprocessStats"></p>
+    </section>
+
+    <!-- ============ 7. EDA ============ -->
+    <section id="eda" class="section">
+      <h2 class="section-title"><span class="num">7</span>Exploratory data analysis</h2>
+      <h3>Class distribution</h3>
+      <div class="chart-row">
+        <div class="chart" id="classBarChart"></div>
+        <div class="chart" id="classPieChart"></div>
+      </div>
+      <p class="note" id="classNote"></p>
+
+      <h3>Message length</h3>
+      <div class="chart-row">
+        <div class="chart" id="lengthHistChart"></div>
+        <div class="chart" id="lengthBoxChart"></div>
+      </div>
+      <div class="table-wrap">
+        <table class="table" id="lengthStatsTable"></table>
+      </div>
+
+      <h3>Most frequent words (after cleaning and stopword removal)</h3>
+      <div class="chart-row">
+        <div class="chart tall" id="hamWordsChart"></div>
+        <div class="chart tall" id="spamWordsChart"></div>
+      </div>
+      <p class="note" id="edaNote"></p>
+    </section>
+
+    <!-- ============ 8. TF-IDF ============ -->
+    <section id="tfidf" class="section">
+      <h2 class="section-title"><span class="num">8</span>TF-IDF feature extraction</h2>
+      <p class="callout">TF-IDF converts text into numerical features that the machine-learning model can use.</p>
+      <div class="prose-grid">
+        <div>
+          <p><b>TF (term frequency)</b> measures how often a word appears in one message. <b>IDF (inverse document frequency)</b> measures how rare the word is across all training messages: idf(t) = ln((1 + N) / (1 + df(t))) + 1. A word gets a high TF-IDF weight when it is frequent in this message but rare overall, for example "prize" in a spam SMS.</p>
+        </div>
+        <div>
+          <p>Each message becomes a long vector with one position per vocabulary term (single words and two-word phrases). Most positions are zero, so scikit-learn stores the result as a <b>sparse matrix</b>. Each row is normalised to unit length so long and short messages are comparable.</p>
+        </div>
+      </div>
+      <div class="stat-grid compact" id="tfidfCards"></div>
+      <div class="chart-row">
+        <div class="chart tall" id="tfidfSpamChart"></div>
+        <div class="chart tall" id="tfidfHamChart"></div>
+      </div>
+      <div class="two-col">
+        <div>
+          <h3>Sample of the vocabulary</h3>
+          <div class="chips" id="vocabChips"></div>
+          <h3>One training message as TF-IDF weights</h3>
+          <div id="tfidfExample"></div>
+        </div>
+        <div>
+          <h3>Common vs rare terms (IDF)</h3>
+          <div class="table-wrap"><table class="table" id="idfTable"></table></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 9. SVM ============ -->
+    <section id="svm" class="section">
+      <h2 class="section-title"><span class="num">9</span>Support Vector Machine — main model</h2>
+      <div class="theory">
+        <div><h4>Hyperplane</h4><p>The SVM separates spam from ham with a hyperplane wᵀx + b = 0 in the TF-IDF feature space. This is a <b>discriminant function</b>: f(x) = wᵀx + b &gt; 0 means spam, &lt; 0 means ham.</p></div>
+        <div><h4>Margin</h4><p>Among all separating hyperplanes, the SVM chooses the one with the widest gap (margin = 2 / ‖w‖) to the nearest messages of each class. A wide margin generalises better to new messages.</p></div>
+        <div><h4>Support vectors</h4><p>Only the training messages lying on or inside the margin determine the boundary. These are the support vectors; all other messages could be removed without changing the model.</p></div>
+        <div><h4>Soft margin and C</h4><p>Real data overlaps, so slack variables ξ allow some mistakes. The objective is minimise ½‖w‖² + C Σ ξₙ. Large C punishes mistakes strongly (narrow margin); small C allows more mistakes (wider margin).</p></div>
+        <div><h4>Kernel</h4><p>A kernel k(x, x′) measures similarity between two messages. The decision function becomes f(x) = Σ aₙ tₙ k(xₙ, x) + b, summed over support vectors only. Linear: xᵀx′. RBF: exp(−γ‖x − x′‖²). Polynomial: (γ xᵀx′ + 1)².</p></div>
+        <div><h4>Kernel trick</h4><p>A kernel equals a dot product in a higher-dimensional feature space, φ(x)ᵀφ(x′), but is computed without ever building φ(x). This lets the SVM learn curved boundaries at the cost of a simple similarity calculation.</p></div>
+      </div>
+
+      <div class="control-panel">
+        <h3>Train the SVM</h3>
+        <div class="form-row">
+          <label>Kernel
+            <select id="svmKernel"><option value="linear">Linear</option><option value="rbf">RBF (Gaussian)</option><option value="poly">Polynomial (degree 2)</option></select>
+          </label>
+          <label>C (regularization)
+            <input type="number" id="svmC" list="cPresets" value="1" min="0.001" max="1000" step="any" inputmode="decimal">
+            <datalist id="cPresets"><option value="0.01"><option value="0.1"><option value="1"><option value="10"><option value="100"></datalist>
+          </label>
+          <label>Gamma (RBF / poly)
+            <select id="svmGamma"><option value="scale" selected>scale</option><option value="auto">auto</option><option>0.1</option><option>0.5</option><option>1</option><option>5</option></select>
+          </label>
+          <label class="check"><input type="checkbox" id="svmBalanced"> Balanced class weights</label>
+          <button type="button" class="btn btn-primary" id="trainSvmBtn">Train SVM</button>
+        </div>
+        <p class="muted small">C accepts any value from 0.001 to 1000 (presets are suggested). Gamma is ignored by the linear kernel. "Balanced" gives the rarer spam class a larger penalty for mistakes.</p>
+      </div>
+
+      <div id="svmResults"></div>
+      <div class="chart-row">
+        <div class="chart tall" id="svmTermsChart"></div>
+        <div class="chart tall" id="svmBoundaryChart"></div>
+      </div>
+      <p class="note" id="svmBoundaryNote"></p>
+    </section>
+
+    <!-- ============ 10. KERNELS + TUNING ============ -->
+    <section id="kernels" class="section">
+      <h2 class="section-title"><span class="num">10</span>Kernel experiment and hyperparameter tuning</h2>
+      <p>The same training and test split is used for every kernel. The polynomial kernel uses degree 2 with coef0 = 1, because higher degrees on sparse TF-IDF vectors produce extremely small similarity values. Results are measured on this dataset only; no kernel is universally better.</p>
+      <div class="actions">
+        <button type="button" class="btn btn-primary" id="kernelBtn">Run kernel comparison</button>
+        <span class="muted small">Uses the C, gamma and class-weight values from the SVM panel.</span>
+      </div>
+      <div id="kernelResults"></div>
+      <div class="chart" id="kernelChart"></div>
+
+      <h3>Grid search (cross-validation on the training set)</h3>
+      <p>Seven preset configurations are tried with stratified 3-fold cross-validation on the training data only, scoring by F1 for the spam class. TF-IDF is refitted inside each fold. The best configuration is then trained on the full training set and evaluated once on the untouched test set.</p>
+      <div class="actions">
+        <button type="button" class="btn btn-primary" id="tuneBtn">Run grid search</button>
+        <span class="muted small">Takes about 20–60 seconds on the full Kaggle dataset.</span>
+      </div>
+      <div id="tuneResults"></div>
+    </section>
+
+    <!-- ============ 11. BAYESIAN LOGISTIC REGRESSION ============ -->
+    <section id="blr" class="section">
+      <h2 class="section-title"><span class="num">11</span>Bayesian logistic regression</h2>
+      <div class="theory">
+        <div><h4>Logistic regression</h4><p>Models the probability directly: p(spam | x) = σ(wᵀx + b), where σ(a) = 1 / (1 + e⁻ᵃ). This is a <b>probabilistic discriminative model</b>.</p></div>
+        <div><h4>Prior</h4><p>Before seeing data we assume each weight is small: p(w) = N(0, σ²<sub>p</sub> I). The prior variance σ²<sub>p</sub> controls how far weights may move from zero.</p></div>
+        <div><h4>Posterior</h4><p>p(w | data) ∝ p(data | w) · p(w). For logistic regression this posterior has no closed form, so exact Bayesian inference is not possible.</p></div>
+        <div><h4>MAP estimate</h4><p>w<sub>MAP</sub> maximises the posterior: minimise Σ [ln(1 + eᵃⁿ) − tₙaₙ] + ‖w‖² / (2σ²<sub>p</sub>). Implemented here with L-BFGS using the exact gradient.</p></div>
+        <div><h4>Laplace approximation</h4><p>The posterior is approximated by a Gaussian centred at w<sub>MAP</sub>: q(w) = N(w<sub>MAP</sub>, S), with S⁻¹ = Σ yₙ(1 − yₙ) xₙxₙᵀ + I / σ²<sub>p</sub> (the Hessian).</p></div>
+        <div><h4>Predictive probability</h4><p>p(spam | x) ≈ σ(κ(s²) μ), μ = w<sub>MAP</sub>ᵀx, s² = xᵀSx, κ = (1 + πs²/8)<sup>−½</sup> (probit approximation). Uncertain inputs are pulled toward 0.5.</p></div>
+      </div>
+      <p class="note"><b>Honest implementation note.</b> This is not scikit-learn's <code>LogisticRegression</code> relabelled. The MAP weights, the Hessian, the Laplace covariance S and the moderated predictive probabilities are computed explicitly in <code>app.py</code>. Because S is a full (k + 1) × (k + 1) matrix, the k most informative TF-IDF features are first selected with a chi-square test on the training set; the intercept gets a weak N(0, 100) prior. With a 0.5 threshold the moderated and MAP probabilities give the same class (κ only shrinks the activation), but the probabilities and the ranking used for ROC-AUC differ. <b>Generative vs discriminative:</b> a generative model (for example Naive Bayes) would model p(x | class) and p(class) and apply Bayes' theorem; logistic regression and the SVM skip modelling the messages and learn the boundary directly.</p>
+
+      <div class="control-panel">
+        <h3>Train Bayesian logistic regression</h3>
+        <div class="form-row">
+          <label>Prior variance (σ²)
+            <select id="blrPrior"><option>0.1</option><option>1</option><option selected>10</option><option>100</option><option>1000</option></select>
+          </label>
+          <label>Features kept (k)
+            <select id="blrFeatures"><option>200</option><option>500</option><option selected>1000</option><option>2000</option></select>
+          </label>
+          <button type="button" class="btn btn-primary" id="trainBlrBtn">Train Bayesian LR</button>
+        </div>
+      </div>
+      <div id="blrResults"></div>
+      <div class="chart-row">
+        <div class="chart tall" id="blrPosteriorChart"></div>
+        <div class="chart tall" id="blrTermsChart"></div>
+      </div>
+      <div id="blrExtra"></div>
+
+      <h3>Generative vs discriminative models (measured)</h3>
+      <p>For comparison, a <b>Multinomial Naive Bayes</b> classifier is trained on the same TF-IDF training features. It is a probabilistic <b>generative</b> model: it learns p(words | class) and p(class), then uses Bayes' theorem to get p(class | message). It is shown only as a reference; the project's models are the SVM and Bayesian logistic regression.</p>
+      <div id="genTable"></div>
+    </section>
+
+    <!-- ============ 12. COMPARISON ============ -->
+    <section id="compare" class="section">
+      <h2 class="section-title"><span class="num">12</span>SVM vs Bayesian logistic regression</h2>
+      <p class="callout">Observed test-set performance</p>
+      <div id="compareTable"></div>
+      <div class="chart-row">
+        <div class="chart" id="compareChart"></div>
+        <div class="chart" id="rocChart"></div>
+      </div>
+      <div class="metric-help">
+        <div><h4>Accuracy</h4><p>Share of all test messages classified correctly: (TP + TN) / total.</p></div>
+        <div><h4>Precision</h4><p>Of the messages flagged as spam, how many really were spam: TP / (TP + FP). Low precision means genuine messages get blocked.</p></div>
+        <div><h4>Recall</h4><p>Of the real spam messages, how many were caught: TP / (TP + FN). Low recall means spam slips through.</p></div>
+        <div><h4>F1-score</h4><p>Harmonic mean of precision and recall; high only when both are high.</p></div>
+        <div><h4>Specificity</h4><p>Share of ham messages correctly left alone: TN / (TN + FP).</p></div>
+        <div><h4>ROC-AUC</h4><p>Probability that a random spam message gets a higher score than a random ham message. Uses the SVM decision score and the Bayesian predictive probability.</p></div>
+      </div>
+      <p class="note" id="imbalanceNote"></p>
+
+      <h3>Precision–recall trade-off and decision threshold</h3>
+      <p>Both models output a score, and a message is called spam when the score passes a threshold. Moving the threshold trades false positives (blocked genuine messages) against false negatives (spam that gets through). For an operator, blocking a real customer message is usually the more costly mistake.</p>
+      <div class="chart-row">
+        <div class="chart" id="prChart"></div>
+        <div class="threshold-panel">
+          <label for="thrSlider">Bayesian LR threshold on P(spam): <b id="thrValue">0.50</b></label>
+          <input type="range" id="thrSlider" min="0.05" max="0.95" step="0.05" value="0.5">
+          <div id="thrStats"></div>
+          <p class="muted small">Measured on the same test set. The default threshold everywhere else on this page is 0.50. This explorer does not change the trained model.</p>
+        </div>
+      </div>
+
+      <h3>Cross-validation check</h3>
+      <p>The results above come from one 80/20 split. Stratified 5-fold cross-validation repeats the whole pipeline five times on different splits of the unique messages (TF-IDF and both models are refitted inside every fold) and reports the mean and standard deviation. A small standard deviation means the single-split result is stable.</p>
+      <div class="actions">
+        <button type="button" class="btn btn-primary" id="cvBtn">Run 5-fold cross-validation</button>
+        <span class="muted small">Uses the current SVM and Bayesian LR settings. Takes a few seconds on the full dataset.</span>
+      </div>
+      <div id="cvResults"></div>
+      <div class="chart" id="cvChart"></div>
+    </section>
+
+    <!-- ============ 13. CONFUSION MATRIX ============ -->
+    <section id="confusion" class="section">
+      <h2 class="section-title"><span class="num">13</span>Confusion matrix</h2>
+      <p>Rows are the actual class and columns are the predicted class. Spam is the positive class.</p>
+      <div class="cm-row">
+        <div><h3>Support Vector Machine</h3><div id="cmSvm"></div></div>
+        <div><h3>Bayesian logistic regression</h3><div id="cmBlr"></div></div>
+      </div>
+      <div class="metric-help">
+        <div><h4>True Positive (TP)</h4><p>Spam correctly flagged as spam.</p></div>
+        <div><h4>True Negative (TN)</h4><p>Ham correctly delivered as ham.</p></div>
+        <div><h4>False Positive (FP)</h4><p>Ham wrongly flagged as spam. A real message is blocked, which is usually the more harmful error for a telecom operator.</p></div>
+        <div><h4>False Negative (FN)</h4><p>Spam wrongly delivered as ham. The user still receives the spam.</p></div>
+      </div>
+      <h3>Misclassified test messages (SVM)</h3>
+      <div id="misclassified"></div>
+    </section>
+
+    <!-- ============ 14. LINEAR REGRESSION ============ -->
+    <section id="linreg" class="section section-separate">
+      <p class="separate-tag">Separate Unit-2 practical — not part of spam classification</p>
+      <h2 class="section-title"><span class="num">14</span>Linear regression demonstration</h2>
+      <p>This module covers Practical 1, "implement linear regression to perform prediction". It uses simple numbers derived from the loaded messages: it <b>predicts the character length of an SMS from its word count</b>. Linear regression is not used to classify spam anywhere in this project.</p>
+
+      <div class="theory two">
+        <div>
+          <h4>Maximum likelihood → least squares</h4>
+          <p>Assume each target is a linear function plus Gaussian noise: t = wᵀφ(x) + ε, ε ~ N(0, σ²). The log-likelihood of N training points is</p>
+          <p class="formula">ln p(t | w, σ²) = −(1 / 2σ²) Σ (tₙ − wᵀφ(xₙ))² − (N / 2) ln(2πσ²)</p>
+          <p>Only the first term depends on w, so maximising the likelihood is exactly minimising the <b>sum of squared errors</b> E(w) = ½ Σ (tₙ − wᵀφ(xₙ))².</p>
+        </div>
+        <div>
+          <h4>Closed-form solution</h4>
+          <p class="formula">w<sub>ML</sub> = (ΦᵀΦ)⁻¹ Φᵀt &nbsp;&nbsp;&nbsp; σ²<sub>ML</sub> = (1/N) Σ (tₙ − w<sub>ML</sub>ᵀφ(xₙ))²</p>
+          <p>Below, w is computed directly from these normal equations with NumPy and checked against scikit-learn. <b>Robust regression</b> (Huber loss) uses squared error for small residuals and absolute error for large ones, so outliers pull the line less.</p>
+        </div>
+      </div>
+
+      <div class="actions">
+        <label class="check"><input type="checkbox" id="outlierToggle"> Add synthetic outliers to the training set (5%, for the robust-regression test)</label>
+      </div>
+      <div id="linregResults"></div>
+      <div class="chart-row">
+        <div class="chart tall" id="linregChart"></div>
+        <div class="chart tall" id="linregAvpChart"></div>
+      </div>
+      <h3>Sample training data</h3>
+      <div class="table-wrap"><table class="table" id="linregTrainTable"></table></div>
+      <h3>Sample test predictions</h3>
+      <div class="table-wrap"><table class="table" id="linregTable"></table></div>
+
+      <h3>Polynomial basis functions (still linear in w)</h3>
+      <p>Replacing x with φ(x) = (x, x², …, x<sup>M</sup>) keeps the model linear in its weights, so least squares still applies. Higher degree fits training data more closely but can overfit.</p>
+      <div class="form-row">
+        <label>Degree shown <input type="range" id="polyDegree" min="1" max="8" value="3"> <b id="polyDegreeVal">3</b></label>
+      </div>
+      <div class="chart-row">
+        <div class="chart" id="polyCurveChart"></div>
+        <div class="chart" id="polyErrorChart"></div>
+      </div>
+      <p class="note" id="polyNote"></p>
+    </section>
+
+    <!-- ============ 15. RIDGE ============ -->
+    <section id="ridge" class="section section-separate">
+      <p class="separate-tag">Separate Unit-2 practical — not part of spam classification</p>
+      <h2 class="section-title"><span class="num">15</span>Ridge regression and Bayesian linear regression</h2>
+      <div class="theory two">
+        <div>
+          <h4>Ridge regression</h4>
+          <p class="formula">E(w) = ½ Σ (tₙ − wᵀφ(xₙ))² + (λ/2)‖w‖² &nbsp;⇒&nbsp; w = (λI + ΦᵀΦ)⁻¹Φᵀt</p>
+          <p>The penalty shrinks coefficients toward zero, which reduces variance and helps when features are correlated. Ridge is the MAP solution of linear regression with a Gaussian prior on w.</p>
+        </div>
+        <div>
+          <h4>Bayesian linear regression</h4>
+          <p>Instead of a single w, a Gaussian posterior over w is kept, giving a predictive mean and a predictive standard deviation for each prediction. scikit-learn's <code>BayesianRidge</code> also estimates the noise precision α and weight precision λ from the data.</p>
+        </div>
+      </div>
+      <p>Task: predict SMS character length from five standardised features — word count, average word length, digit count, uppercase count and punctuation count.</p>
+      <div class="form-row">
+        <label>Ridge λ (alpha)
+          <select id="ridgeAlpha"><option>0.1</option><option>1</option><option>10</option><option>100</option><option selected>1000</option><option>10000</option></select>
+        </label>
+      </div>
+      <div id="ridgeResults"></div>
+      <div class="chart-row">
+        <div class="chart" id="ridgePathChart"></div>
+        <div class="chart" id="ridgeErrorChart"></div>
+      </div>
+      <div id="bayesRidgeResults"></div>
+    </section>
+
+    <!-- ============ 16. LIVE TESTER ============ -->
+    <section id="tester" class="section">
+      <h2 class="section-title"><span class="num">16</span>Test an SMS</h2>
+      <p>Your message is sent to the Flask backend, cleaned, converted with the trained TF-IDF vectorizer and classified by both trained models.</p>
+      <div class="tester">
+        <div class="tester-input">
+          <textarea id="smsInput" rows="5" maxlength="2000" placeholder="Enter an SMS message..."></textarea>
+          <div class="example-chips">
+            <span class="muted small">Try an example input:</span>
+            <button type="button" class="chip-btn" data-example="Congratulations! You won a free prize. Click now to claim your reward">Prize message</button>
+            <button type="button" class="chip-btn" data-example="Hey, are we still meeting at the library at 5? I'll bring your notes">Friend message</button>
+            <button type="button" class="chip-btn" data-example="URGENT: your account will be suspended. Call 09061234567 or visit www.verify-now.example.com">Account warning</button>
+          </div>
+          <button type="button" class="btn btn-primary btn-large" id="classifyBtn">Classify Message</button>
+        </div>
+        <div id="predictResult" class="predict-result" aria-live="polite">
+          <p class="muted">The prediction will appear here.</p>
+        </div>
+      </div>
+      <div class="history-head">
+        <h3>Recent predictions</h3>
+        <button type="button" class="btn btn-small" id="clearHistoryBtn">Clear list</button>
+      </div>
+      <div id="historyWrap"></div>
+    </section>
+
+    <!-- ============ 17. FINDINGS ============ -->
+    <section id="findings" class="section">
+      <h2 class="section-title"><span class="num">17</span>Key findings</h2>
+      <p class="muted">Generated automatically from the loaded dataset and the trained models.</p>
+      <ol class="findings" id="findingsList"></ol>
+      <h3>Download the measured results</h3>
+      <p>These files are generated from the current run and are useful as additional proof for the Google Drive folder.</p>
+      <div class="actions">
+        <a class="btn" href="/api/export/predictions" download>Download test-set predictions (CSV)</a>
+        <a class="btn" href="/api/export/summary" download>Download results summary (JSON)</a>
+      </div>
+    </section>
+
+    <!-- ============ 18. CONCLUSION ============ -->
+    <section id="conclusion" class="section">
+      <h2 class="section-title"><span class="num">18</span>Conclusion and submission</h2>
+      <p>This project builds a complete SMS spam detection system around a Support Vector Machine. Messages are validated, cleaned and converted to TF-IDF features without data leakage; an SVM with selectable kernels is trained and evaluated on a held-out test set; and a Bayesian logistic regression model using the Laplace approximation provides a probabilistic comparison. Separate regression modules demonstrate maximum likelihood, least squares, robust, polynomial, ridge and Bayesian linear regression from the Unit-2 syllabus. The measured results for the currently loaded dataset are listed in the key findings above.</p>
+      <h3>Limitations and future scope</h3>
+      <p>The dataset is English-only and several years old, so modern spam styles (for example delivery-scam links or regional languages) are under-represented. Results come from one random split; repeated cross-validation would give more stable estimates. Future work could add multilingual data, character n-grams to handle deliberate misspellings, threshold tuning to reduce false positives, and deployment as an operator-side filtering API.</p>
+
+      <h3>Submission links</h3>
+      <div class="table-wrap">
+        <table class="table">
+          <tbody>
+            <tr><th>Dataset link</th><td><a href="{{ dataset_url }}" target="_blank" rel="noopener">Kaggle SMS Spam Collection Dataset</a></td></tr>
+            <tr><th>GitHub project link</th><td>Not published yet</td></tr>
+            <tr><th>Output screenshots PDF</th><td>Not added yet</td></tr>
+            <tr><th>PPT</th><td>Not added yet</td></tr>
+            <tr><th>Complete Google Drive folder</th><td>Not shared yet</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>References</h3>
+      <ol class="refs">
+        <li>Almeida, T. A., Gómez Hidalgo, J. M., &amp; Yamakami, A. (2011). Contributions to the study of SMS spam filtering: new collection and results. <i>Proceedings of the 11th ACM Symposium on Document Engineering</i>.</li>
+        <li>UCI Machine Learning. SMS Spam Collection Dataset. Kaggle. <a href="{{ dataset_url }}" target="_blank" rel="noopener">{{ dataset_url }}</a></li>
+        <li>Bishop, C. M. (2006). <i>Pattern Recognition and Machine Learning</i>. Springer. (Chapters 3, 4, 6 and 7.)</li>
+        <li>Cortes, C., &amp; Vapnik, V. (1995). Support-vector networks. <i>Machine Learning</i>, 20(3), 273–297.</li>
+        <li>Pedregosa, F., et al. (2011). Scikit-learn: Machine learning in Python. <i>Journal of Machine Learning Research</i>, 12, 2825–2830.</li>
+        <li>Murphy, K. P. (2012). <i>Machine Learning: A Probabilistic Perspective</i>. MIT Press.</li>
+      </ol>
+    </section>
+
+    <footer class="footer">
+      <p>SMS Spam Intelligence Dashboard — {{ title }}. Machine Learning – Unit 2 Project.</p>
+    </footer>
+  </main>
+</div>
+
+<div id="toast" class="toast hidden" role="status"></div>
+<div id="busy" class="busy hidden" aria-hidden="true"><div class="busy-box"><span class="spinner"></span><span id="busyText">Working…</span></div></div>
+
+<script src="{{ url_for('static', filename='js/vendor/plotly.min.js') }}"></script>
+<script>
+  if (!window.Plotly) {
+    var s = document.createElement('script');
+    s.src = 'https://cdn.plot.ly/plotly-2.35.2.min.js';
+    document.head.appendChild(s);
+  }
+</script>
+<script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
